@@ -6,7 +6,7 @@ Ovadare Framework Core Module
 This module provides the OvadareFramework class, which serves as the central
 orchestrator for the Ovadare system. It initializes and manages the core components,
 including the AgentRegistry, EventDispatcher, PolicyManager, ConflictDetector,
-ResolutionEngine, MonitoringService, and APIEndpoints.
+ResolutionEngine, MonitoringService, APIEndpoints, FeedbackManager, and EscalationManager.
 """
 
 import logging
@@ -14,12 +14,15 @@ from typing import Optional, Dict, Any
 
 from ovadare.core.event_dispatcher import EventDispatcher
 from ovadare.agents.agent_registry import AgentRegistry
+from ovadare.agents.agent_sdk import AgentSDK
 from ovadare.policies.policy_manager import PolicyManager
 from ovadare.conflicts.conflict_detector import ConflictDetector
 from ovadare.conflicts.resolution_engine import ResolutionEngine
 from ovadare.monitoring.monitoring_service import MonitoringService
 from ovadare.communication.api_endpoints import APIEndpoints
 from ovadare.utils.configuration import Configuration
+from ovadare.feedback.feedback_manager import FeedbackManager
+from ovadare.escalation.escalation_manager import EscalationManager
 
 # Configure the logger for this module
 logger = logging.getLogger(__name__)
@@ -33,7 +36,7 @@ class OvadareFramework:
     are properly integrated.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
         """
         Initializes the Ovadare Framework.
 
@@ -54,9 +57,11 @@ class OvadareFramework:
         # Initialize core components
         self.event_dispatcher = EventDispatcher()
         self.agent_registry = AgentRegistry()
+        self.feedback_manager = FeedbackManager()
         self.policy_manager = PolicyManager()
         self.conflict_detector = ConflictDetector(policy_manager=self.policy_manager)
         self.resolution_engine = ResolutionEngine(agent_registry=self.agent_registry)
+        self.escalation_manager = EscalationManager()
         self.monitoring_service = MonitoringService(
             agent_registry=self.agent_registry,
             conflict_detector=self.conflict_detector
@@ -64,6 +69,11 @@ class OvadareFramework:
         self.api_endpoints = APIEndpoints(
             agent_registry=self.agent_registry,
             event_dispatcher=self.event_dispatcher
+        )
+        self.agent_sdk = AgentSDK(
+            agent_registry=self.agent_registry,
+            event_dispatcher=self.event_dispatcher,
+            feedback_manager=self.feedback_manager
         )
 
         logger.debug("Core components initialized.")
@@ -74,11 +84,12 @@ class OvadareFramework:
 
     def _register_event_listeners(self) -> None:
         """
-        Registers event listeners for handling agent actions and conflicts.
+        Registers event listeners for handling agent actions, conflicts, and resolutions.
         """
         self.event_dispatcher.add_listener('agent_action', self._handle_agent_action)
         self.event_dispatcher.add_listener('conflict_detected', self._handle_conflict_detected)
-        logger.debug("Event listeners for 'agent_action' and 'conflict_detected' added.")
+        self.event_dispatcher.add_listener('resolution_failed', self._handle_resolution_failed)
+        logger.debug("Event listeners for 'agent_action', 'conflict_detected', and 'resolution_failed' added.")
 
     def _handle_agent_action(self, event_data: Dict[str, Any]) -> None:
         """
@@ -116,6 +127,22 @@ class OvadareFramework:
 
         resolutions = self.resolution_engine.generate_resolutions(conflicts)
         self.resolution_engine.apply_resolutions(resolutions)
+
+    def _handle_resolution_failed(self, event_data: Dict[str, Any]) -> None:
+        """
+        Handles resolution failure events by escalating conflicts.
+
+        Args:
+            event_data (Dict[str, Any]): The event data containing the conflict.
+        """
+        conflict = event_data.get('conflict')
+        logger.debug(f"Handling resolution failure for conflict: {conflict}")
+
+        if not conflict:
+            logger.error("No conflict provided in event data.")
+            return
+
+        self.escalation_manager.escalate_conflict(conflict)
 
     def start(self) -> None:
         """

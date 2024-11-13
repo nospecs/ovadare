@@ -9,13 +9,14 @@ It stores detected conflicts and provides methods for retrieving and resolving t
 """
 
 import logging
+import json
+import os
 from typing import List, Dict, Any, Optional
 from threading import Lock
 
-from ovadare.agents.agent_registry import AgentRegistry
 from ovadare.policies.policy_manager import PolicyManager
 from ovadare.conflicts.conflict import Conflict
-from ovadare.policies.policy import EvaluationResult
+from ovadare.utils.configuration import Configuration
 
 # Configure the logger for this module
 logger = logging.getLogger(__name__)
@@ -24,10 +25,10 @@ logger.setLevel(logging.DEBUG)
 
 class ConflictDetector:
     """
-    The ConflictDetector evaluates agent actions against policies to detect conflicts.
+    Evaluates agent actions against policies to detect conflicts.
     """
 
-    def __init__(self, policy_manager: Optional[PolicyManager] = None):
+    def __init__(self, policy_manager: Optional[PolicyManager] = None) -> None:
         """
         Initializes the ConflictDetector.
 
@@ -38,6 +39,8 @@ class ConflictDetector:
         self.policy_manager = policy_manager or PolicyManager()
         self._conflicts: Dict[str, Conflict] = {}
         self._lock = Lock()
+        self._storage_file = Configuration.get('conflict_storage_file', 'conflicts_data.json')
+        self._load_conflicts()
         logger.debug("ConflictDetector initialized.")
 
     def detect(self, agent_id: str, action: Dict[str, Any]) -> List[Conflict]:
@@ -57,7 +60,7 @@ class ConflictDetector:
         try:
             evaluation_results = self.policy_manager.evaluate_policies(action)
             for result in evaluation_results:
-                if not result:
+                if not result.is_compliant:
                     conflict = Conflict(
                         related_agent_id=agent_id,
                         action=action,
@@ -66,6 +69,7 @@ class ConflictDetector:
                     )
                     with self._lock:
                         self._conflicts[conflict.conflict_id] = conflict
+                        self._save_conflicts()
                     conflicts.append(conflict)
                     logger.info(f"Conflict detected: {conflict}")
         except Exception as e:
@@ -113,6 +117,7 @@ class ConflictDetector:
         with self._lock:
             if conflict_id in self._conflicts:
                 del self._conflicts[conflict_id]
+                self._save_conflicts()
                 logger.info(f"Conflict '{conflict_id}' resolved and removed.")
             else:
                 logger.warning(f"Conflict '{conflict_id}' not found. Cannot resolve.")
@@ -123,4 +128,35 @@ class ConflictDetector:
         """
         with self._lock:
             self._conflicts.clear()
+            self._save_conflicts()
         logger.info("All conflicts cleared.")
+
+    def _load_conflicts(self) -> None:
+        """
+        Loads conflicts data from the storage file.
+        """
+        if os.path.exists(self._storage_file):
+            try:
+                with open(self._storage_file, 'r', encoding='utf-8') as f:
+                    conflicts_data = json.load(f)
+                    self._conflicts = {
+                        cid: Conflict.from_dict(cdata) for cid, cdata in conflicts_data.items()
+                    }
+                logger.debug(f"Loaded conflicts data from '{self._storage_file}'.")
+            except Exception as e:
+                logger.error(f"Failed to load conflicts data: {e}", exc_info=True)
+                self._conflicts = {}
+        else:
+            logger.debug(f"Conflict storage file '{self._storage_file}' does not exist. Starting fresh.")
+
+    def _save_conflicts(self) -> None:
+        """
+        Saves conflicts data to the storage file.
+        """
+        try:
+            conflicts_data = {cid: conflict.to_dict() for cid, conflict in self._conflicts.items()}
+            with open(self._storage_file, 'w', encoding='utf-8') as f:
+                json.dump(conflicts_data, f, ensure_ascii=False, indent=4)
+            logger.debug(f"Saved conflicts data to '{self._storage_file}'.")
+        except Exception as e:
+            logger.error(f"Failed to save conflicts data: {e}", exc_info=True)

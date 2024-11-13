@@ -1,152 +1,114 @@
 # ovadare/agents/agent_sdk.py
 
 """
-Agent SDK Module
+Agent SDK Module for the Ovadare Framework
 
-This module provides a Software Development Kit (SDK) for developers to create
-agents that integrate with the Ovadare framework. The SDK offers a base class
-'BaseAgent' that implements the 'AgentInterface' and handles communication
-with the framework, allowing developers to focus on agent-specific logic.
+This module provides the AgentSDK class, which offers utilities and interfaces
+for agents to interact with the Ovadare framework. It includes methods for
+registering agents, submitting actions, receiving resolutions, and providing feedback.
 """
 
-from ovadare.core.base_classes import AgentInterface, Resolution
-from ovadare.utils.logger import Logger
+import logging
+from typing import Dict, Any
+
+from ovadare.agents.agent_interface import AgentInterface
+from ovadare.agents.agent_registry import AgentRegistry
 from ovadare.core.event_dispatcher import EventDispatcher
-from typing import List, Dict, Any, Optional
+from ovadare.feedback.feedback_manager import FeedbackManager
+
+# Configure the logger for this module
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
-class BaseAgent(AgentInterface):
+class AgentSDK:
     """
-    Base class for agents integrating with the Ovadare framework.
-    Implements the AgentInterface and provides common functionalities.
+    Provides utilities for agents to interact with the Ovadare framework.
     """
 
-    def __init__(self, agent_id: str, capabilities: List[str], event_dispatcher: EventDispatcher):
+    def __init__(
+        self,
+        agent_registry: AgentRegistry,
+        event_dispatcher: EventDispatcher,
+        feedback_manager: FeedbackManager
+    ) -> None:
         """
-        Initializes the BaseAgent.
+        Initializes the AgentSDK.
 
         Args:
-            agent_id (str): Unique identifier for the agent.
-            capabilities (List[str]): List of actions or tasks the agent can perform.
-            event_dispatcher (EventDispatcher): Event dispatcher instance for communication.
-
-        Raises:
-            ValueError: If 'agent_id' is invalid or empty.
-            TypeError: If 'capabilities' is not a list of strings.
+            agent_registry (AgentRegistry): The registry for managing agents.
+            event_dispatcher (EventDispatcher): The event dispatcher for sending events.
+            feedback_manager (FeedbackManager): The feedback manager for submitting feedback.
         """
-        if not agent_id:
-            raise ValueError("agent_id must be a valid non-empty string.")
-        if not isinstance(capabilities, list) or not all(isinstance(cap, str) for cap in capabilities):
-            raise TypeError("capabilities must be a list of strings.")
-        if not isinstance(event_dispatcher, EventDispatcher):
-            raise TypeError("event_dispatcher must be an instance of EventDispatcher.")
+        self.agent_registry = agent_registry
+        self.event_dispatcher = event_dispatcher
+        self.feedback_manager = feedback_manager
+        logger.debug("AgentSDK initialized.")
 
-        self._agent_id = agent_id
-        self._capabilities = capabilities
-        self._event_dispatcher = event_dispatcher
-        self.logger = Logger(f"Agent-{self._agent_id}")
-        self.logger.debug(f"Agent '{self._agent_id}' initialized with capabilities: {self._capabilities}")
-
-    @property
-    def agent_id(self) -> str:
-        """Unique identifier for the agent."""
-        return self._agent_id
-
-    @property
-    def capabilities(self) -> List[str]:
-        """List of actions or tasks the agent can perform."""
-        return self._capabilities
-
-    def report_action(self, action: Dict[str, Any]) -> None:
+    def register_agent(self, agent: AgentInterface) -> None:
         """
-        Reports an action that the agent intends to perform to the framework.
+        Registers an agent with the framework.
 
         Args:
-            action (Dict[str, Any]): The action to be reported.
-
-        Raises:
-            ValueError: If 'action' is not a valid dictionary.
+            agent (AgentInterface): The agent to register.
         """
-        if not isinstance(action, dict):
-            self.logger.error("Invalid action format. 'action' must be a dictionary.")
-            raise ValueError("action must be a dictionary.")
+        self.agent_registry.register_agent(agent)
+        logger.info(f"Agent '{agent.agent_id}' registered successfully.")
 
-        self.logger.debug(f"Agent '{self._agent_id}' reporting action: {action}")
-        event_data = {
-            'agent_id': self._agent_id,
-            'action': action
+    def submit_action(self, agent_id: str, action: Dict[str, Any]) -> None:
+        """
+        Submits an action performed by an agent to the framework.
+
+        Args:
+            agent_id (str): The ID of the agent performing the action.
+            action (Dict[str, Any]): The action data.
+        """
+        event_data = {'agent_id': agent_id, 'action': action}
+        logger.debug(f"Agent '{agent_id}' submitting action: {action}")
+        self.event_dispatcher.dispatch('agent_action', event_data)
+
+    def submit_feedback(self, agent_id: str, feedback_type: str, message: str) -> None:
+        """
+        Submits feedback from an agent to the framework.
+
+        Args:
+            agent_id (str): The ID of the agent submitting feedback.
+            feedback_type (str): The type of feedback (e.g., 'policy_issue', 'system_error').
+            message (str): The feedback message.
+        """
+        feedback_data = {
+            'agent_id': agent_id,
+            'feedback_type': feedback_type,
+            'message': message,
+            'timestamp': self._current_timestamp()
         }
+        logger.debug(f"Agent '{agent_id}' submitting feedback: {feedback_data}")
         try:
-            self._event_dispatcher.dispatch('agent_action', event_data)
-            self.logger.debug(f"Action reported successfully: {action}")
-        except Exception as e:
-            self.logger.error(f"Failed to report action: {e}")
-            raise
+            self.feedback_manager.submit_feedback(feedback_data)
+            logger.info(f"Feedback from agent '{agent_id}' submitted successfully.")
+        except ValueError as e:
+            logger.error(f"Error submitting feedback from agent '{agent_id}': {e}")
 
-    def receive_resolution(self, resolution: Resolution) -> None:
+    def receive_resolutions(self, agent_id: str) -> None:
         """
-        Receives a resolution from the framework.
+        Placeholder method for agents to receive resolutions sent by the framework.
 
         Args:
-            resolution (Resolution): The resolution to be applied.
-
-        Raises:
-            ValueError: If 'resolution' is not an instance of Resolution.
+            agent_id (str): The ID of the agent.
         """
-        if not isinstance(resolution, Resolution):
-            self.logger.error("Invalid resolution received. Must be an instance of Resolution.")
-            raise ValueError("resolution must be an instance of Resolution.")
+        # This method would include logic for the agent to receive resolutions
+        # from the framework. Implementation depends on the communication mechanisms.
+        logger.debug(f"Agent '{agent_id}' checking for resolutions.")
+        # Placeholder implementation
+        pass
 
-        self.logger.info(f"Agent '{self._agent_id}' received resolution: {resolution.explanation}")
-        # Apply the resolution's actions
-        self.apply_resolution(resolution)
-
-    def apply_resolution(self, resolution: Resolution) -> None:
+    @staticmethod
+    def _current_timestamp() -> float:
         """
-        Applies the resolution's actions. Override this method to define custom behavior.
+        Gets the current timestamp.
 
-        Args:
-            resolution (Resolution): The resolution to apply.
+        Returns:
+            float: The current time in seconds since the epoch.
         """
-        self.logger.debug(f"Agent '{self._agent_id}' applying resolution actions.")
-        # Default implementation: Log the actions
-        for action in resolution.actions:
-            self.logger.info(f"Executing action: {action}")
-            # Implement default action handling logic if necessary
-
-    def perform_task(self, task_data: Dict[str, Any]) -> None:
-        """
-        Performs a task specific to the agent. Override this method with agent-specific logic.
-
-        Args:
-            task_data (Dict[str, Any]): Data related to the task to be performed.
-        """
-        self.logger.debug(f"Agent '{self._agent_id}' performing task: {task_data}")
-        # Agent-specific task implementation goes here
-        raise NotImplementedError("perform_task must be implemented by the subclass.")
-
-    def update_capabilities(self, new_capabilities: List[str]) -> None:
-        """
-        Updates the agent's capabilities.
-
-        Args:
-            new_capabilities (List[str]): The new list of capabilities.
-
-        Raises:
-            TypeError: If 'new_capabilities' is not a list of strings.
-        """
-        if not isinstance(new_capabilities, list) or not all(isinstance(cap, str) for cap in new_capabilities):
-            self.logger.error("Invalid capabilities format. Must be a list of strings.")
-            raise TypeError("new_capabilities must be a list of strings.")
-
-        self._capabilities = new_capabilities
-        self.logger.info(f"Agent '{self._agent_id}' updated capabilities: {self._capabilities}")
-
-    def shutdown(self) -> None:
-        """
-        Shuts down the agent and performs any necessary cleanup.
-        """
-        self.logger.info(f"Agent '{self._agent_id}' is shutting down.")
-        # Implement cleanup logic if necessary
-
-    # Additional helper methods can be added here to support agent functionality
+        import time
+        return time.time()

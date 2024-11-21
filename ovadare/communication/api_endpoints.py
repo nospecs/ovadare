@@ -3,21 +3,19 @@
 """
 API Endpoints Module for the Ovadare Framework
 
-This module provides the APIEndpoints class, which sets up RESTful API endpoints
-for communication with external agents and systems. It allows agents to register,
-submit actions, and receive updates, facilitating interaction with the framework.
+This module provides the APIEndpoints class, which defines RESTful API endpoints
+for agents and users to interact with the framework. It integrates authentication
+mechanisms to ensure secure access to the framework's resources.
 """
 
-from typing import Optional, Dict, Any
 import logging
-import threading
-
 from flask import Flask, request, jsonify
-from werkzeug.serving import make_server
+from threading import Thread
+from typing import Optional
 
-from ovadare.agents.agent_interface import AgentInterface
 from ovadare.agents.agent_registry import AgentRegistry
 from ovadare.core.event_dispatcher import EventDispatcher
+from ovadare.security.authentication import AuthenticationManager
 
 # Configure the logger for this module
 logger = logging.getLogger(__name__)
@@ -26,175 +24,142 @@ logger.setLevel(logging.DEBUG)
 
 class APIEndpoints:
     """
-    The APIEndpoints class sets up RESTful API endpoints for communication
-    with external agents and systems.
+    Defines the API endpoints for the Ovadare Framework.
     """
 
     def __init__(
         self,
-        agent_registry: Optional[AgentRegistry] = None,
-        event_dispatcher: Optional[EventDispatcher] = None,
-        host: str = '0.0.0.0',
-        port: int = 5000
-    ):
+        agent_registry: AgentRegistry,
+        event_dispatcher: EventDispatcher,
+        authentication_manager: AuthenticationManager
+    ) -> None:
         """
         Initializes the APIEndpoints.
 
         Args:
-            agent_registry (Optional[AgentRegistry]): An instance of AgentRegistry.
-                If None, a new AgentRegistry is instantiated.
-            event_dispatcher (Optional[EventDispatcher]): An instance of EventDispatcher.
-                If None, a new EventDispatcher is instantiated.
-            host (str): The host address to bind the server to.
-            port (int): The port number to listen on.
+            agent_registry (AgentRegistry): The registry for managing agents.
+            event_dispatcher (EventDispatcher): The event dispatcher for sending events.
+            authentication_manager (AuthenticationManager): The authentication manager for securing endpoints.
         """
-        self.agent_registry = agent_registry or AgentRegistry()
-        self.event_dispatcher = event_dispatcher or EventDispatcher()
-        self.host = host
-        self.port = port
+        self.agent_registry = agent_registry
+        self.event_dispatcher = event_dispatcher
+        self.authentication_manager = authentication_manager
         self.app = Flask(__name__)
-        self.server = None
-        self.thread = None
-        self._setup_routes()
+        self._register_routes()
+        self._server_thread: Optional[Thread] = None
         logger.debug("APIEndpoints initialized.")
 
-    def _setup_routes(self):
+    def _register_routes(self) -> None:
         """
-        Sets up the API routes for agent registration, action submission, etc.
+        Registers the API routes.
         """
-
-        @self.app.route('/register_agent', methods=['POST'])
-        def register_agent():
+        @self.app.route('/register', methods=['POST'])
+        def register():
             data = request.get_json()
-            if not data:
-                logger.error("No JSON data received in /register_agent")
-                return jsonify({'error': 'Invalid JSON data'}), 400
-
-            agent_id = data.get('agent_id')
-            capabilities = data.get('capabilities', [])
-            if not agent_id:
-                logger.error("agent_id is missing in /register_agent request")
-                return jsonify({'error': 'agent_id is required'}), 400
-
-            # Create an agent instance
-            agent = self._create_agent(agent_id, capabilities)
+            user_id = data.get('user_id')
+            password = data.get('password')
+            if not user_id or not password:
+                return jsonify({'error': 'user_id and password are required'}), 400
             try:
-                self.agent_registry.register_agent(agent)
-                logger.info(f"Agent '{agent_id}' registered successfully.")
-                return jsonify({'message': f'Agent {agent_id} registered successfully.'}), 200
+                self.authentication_manager.register_user(user_id, password)
+                return jsonify({'message': 'User registered successfully'}), 201
             except ValueError as e:
-                logger.error(f"Error registering agent '{agent_id}': {e}")
                 return jsonify({'error': str(e)}), 400
+
+        @self.app.route('/login', methods=['POST'])
+        def login():
+            data = request.get_json()
+            user_id = data.get('user_id')
+            password = data.get('password')
+            if not user_id or not password:
+                return jsonify({'error': 'user_id and password are required'}), 400
+            token = self.authentication_manager.authenticate(user_id, password)
+            if token:
+                return jsonify({'token': token}), 200
+            else:
+                return jsonify({'error': 'Authentication failed'}), 401
 
         @self.app.route('/submit_action', methods=['POST'])
         def submit_action():
-            data = request.get_json()
-            if not data:
-                logger.error("No JSON data received in /submit_action")
-                return jsonify({'error': 'Invalid JSON data'}), 400
+            token = request.headers.get('Authorization')
+            if not self._is_authenticated(token):
+                return jsonify({'error': 'Unauthorized'}), 401
 
+            data = request.get_json()
             agent_id = data.get('agent_id')
             action = data.get('action')
             if not agent_id or not action:
-                logger.error("agent_id or action is missing in /submit_action request")
                 return jsonify({'error': 'agent_id and action are required'}), 400
 
-            agent = self.agent_registry.get_agent(agent_id)
-            if not agent:
-                logger.error(f"Agent '{agent_id}' not found in /submit_action")
-                return jsonify({'error': f'Agent {agent_id} not found'}), 404
+            # Dispatch the agent action event
+            event_data = {'agent_id': agent_id, 'action': action}
+            self.event_dispatcher.dispatch('agent_action', event_data)
+            logger.info(f"Agent '{agent_id}' submitted action: {action}")
+            return jsonify({'message': 'Action submitted successfully'}), 200
 
-            # Dispatch an event for the agent action
-            self.event_dispatcher.dispatch_event('agent_action', agent_id=agent_id, action=action)
-            logger.info(f"Action submitted by agent '{agent_id}'")
-            return jsonify({'message': 'Action submitted successfully.'}), 200
+        @self.app.route('/submit_feedback', methods=['POST'])
+        def submit_feedback():
+            token = request.headers.get('Authorization')
+            if not self._is_authenticated(token):
+                return jsonify({'error': 'Unauthorized'}), 401
 
-        @self.app.route('/unregister_agent', methods=['POST'])
-        def unregister_agent():
             data = request.get_json()
-            if not data:
-                logger.error("No JSON data received in /unregister_agent")
-                return jsonify({'error': 'Invalid JSON data'}), 400
-
             agent_id = data.get('agent_id')
-            if not agent_id:
-                logger.error("agent_id is missing in /unregister_agent request")
-                return jsonify({'error': 'agent_id is required'}), 400
+            feedback_type = data.get('feedback_type')
+            message = data.get('message')
+            if not agent_id or not feedback_type or not message:
+                return jsonify({'error': 'agent_id, feedback_type, and message are required'}), 400
 
-            try:
-                self.agent_registry.unregister_agent(agent_id)
-                logger.info(f"Agent '{agent_id}' unregistered successfully.")
-                return jsonify({'message': f'Agent {agent_id} unregistered successfully.'}), 200
-            except ValueError as e:
-                logger.error(f"Error unregistering agent '{agent_id}': {e}")
-                return jsonify({'error': str(e)}), 400
+            # Dispatch the feedback event
+            feedback_data = {
+                'agent_id': agent_id,
+                'feedback_type': feedback_type,
+                'message': message
+            }
+            self.event_dispatcher.dispatch('feedback_submitted', feedback_data)
+            logger.info(f"Agent '{agent_id}' submitted feedback: {feedback_data}")
+            return jsonify({'message': 'Feedback submitted successfully'}), 200
 
-        logger.debug("API routes set up.")
+        logger.debug("API routes registered.")
 
-    def _create_agent(self, agent_id: str, capabilities: list) -> AgentInterface:
+    def _is_authenticated(self, token: Optional[str]) -> bool:
         """
-        Creates an agent instance based on the provided agent ID and capabilities.
+        Checks if the provided token is valid.
 
         Args:
-            agent_id (str): The ID of the agent.
-            capabilities (list): A list of capabilities for the agent.
+            token (Optional[str]): The authentication token from the request header.
 
         Returns:
-            AgentInterface: The created agent instance.
+            bool: True if authenticated, False otherwise.
         """
-        # For demonstration, we'll create a simple agent that implements AgentInterface
-        class ExternalAgent(AgentInterface):
-            def __init__(self, agent_id: str, capabilities: list):
-                self._agent_id = agent_id
-                self._capabilities = capabilities
-                self.logger = logging.getLogger(__name__)
+        if token and self.authentication_manager.validate_token(token):
+            return True
+        else:
+            logger.warning("Unauthorized access attempt.")
+            return False
 
-            @property
-            def agent_id(self) -> str:
-                return self._agent_id
-
-            @property
-            def capabilities(self) -> list:
-                return self._capabilities
-
-            def initialize(self) -> None:
-                self.logger.debug(f"Initializing agent '{self.agent_id}'.")
-
-            def shutdown(self) -> None:
-                self.logger.debug(f"Shutting down agent '{self.agent_id}'.")
-
-            def perform_action(self, action: Dict[str, Any]) -> Dict[str, Any]:
-                # Implementation omitted for brevity
-                return {}
-
-            def report_status(self) -> Dict[str, Any]:
-                return {'status': 'active'}
-
-            def handle_event(self, event_type: str, event_data: Dict[str, Any]) -> None:
-                self.logger.debug(f"Agent '{self.agent_id}' received event '{event_type}' with data: {event_data}")
-
-            def handle_resolution(self, resolution: Any) -> None:
-                self.logger.debug(f"Agent '{self.agent_id}' received resolution: {resolution}")
-
-        return ExternalAgent(agent_id, capabilities)
-
-    def start(self):
+    def start(self, host: str = '0.0.0.0', port: int = 5000) -> None:
         """
         Starts the API server in a separate thread.
-        """
-        logger.info(f"Starting API server on {self.host}:{self.port}...")
-        self.server = make_server(self.host, self.port, self.app)
-        self.thread = threading.Thread(target=self.server.serve_forever)
-        self.thread.daemon = True
-        self.thread.start()
-        logger.info("API server started.")
 
-    def stop(self):
+        Args:
+            host (str): The host IP address.
+            port (int): The port number.
+        """
+        def run_app():
+            logger.info(f"API server running on {host}:{port}")
+            self.app.run(host=host, port=port, use_reloader=False)
+
+        self._server_thread = Thread(target=run_app, daemon=True)
+        self._server_thread.start()
+        logger.debug("API server started in a separate thread.")
+
+    def stop(self) -> None:
         """
         Stops the API server.
         """
-        if self.server:
-            logger.info("Stopping API server...")
-            self.server.shutdown()
-            self.thread.join()
-            logger.info("API server stopped.")
+        # Flask doesn't provide a built-in way to stop the server programmatically.
+        # This is a placeholder implementation.
+        logger.info("API server stop requested.")
+        # Implement server shutdown logic if needed.
+        pass

@@ -6,7 +6,8 @@ Ovadare Framework Core Module
 This module provides the OvadareFramework class, which serves as the central
 orchestrator for the Ovadare system. It initializes and manages the core components,
 including the AgentRegistry, EventDispatcher, PolicyManager, ConflictDetector,
-ResolutionEngine, MonitoringService, APIEndpoints, FeedbackManager, and EscalationManager.
+ResolutionEngine, MonitoringService, APIEndpoints, FeedbackManager, EscalationManager,
+AuthenticationManager, and AuthorizationManager.
 """
 
 import logging
@@ -23,6 +24,8 @@ from ovadare.communication.api_endpoints import APIEndpoints
 from ovadare.utils.configuration import Configuration
 from ovadare.feedback.feedback_manager import FeedbackManager
 from ovadare.escalation.escalation_manager import EscalationManager
+from ovadare.security.authentication import AuthenticationManager
+from ovadare.security.authorization import AuthorizationManager
 
 # Configure the logger for this module
 logger = logging.getLogger(__name__)
@@ -60,20 +63,26 @@ class OvadareFramework:
         self.feedback_manager = FeedbackManager()
         self.policy_manager = PolicyManager()
         self.conflict_detector = ConflictDetector(policy_manager=self.policy_manager)
-        self.resolution_engine = ResolutionEngine(agent_registry=self.agent_registry)
+        self.resolution_engine = ResolutionEngine()
         self.escalation_manager = EscalationManager()
+        self.authentication_manager = AuthenticationManager()
+        self.authorization_manager = AuthorizationManager()
         self.monitoring_service = MonitoringService(
             agent_registry=self.agent_registry,
             conflict_detector=self.conflict_detector
         )
         self.api_endpoints = APIEndpoints(
             agent_registry=self.agent_registry,
-            event_dispatcher=self.event_dispatcher
+            event_dispatcher=self.event_dispatcher,
+            authentication_manager=self.authentication_manager,
+            authorization_manager=self.authorization_manager
         )
         self.agent_sdk = AgentSDK(
             agent_registry=self.agent_registry,
             event_dispatcher=self.event_dispatcher,
-            feedback_manager=self.feedback_manager
+            feedback_manager=self.feedback_manager,
+            authentication_manager=self.authentication_manager,
+            authorization_manager=self.authorization_manager
         )
 
         logger.debug("Core components initialized.")
@@ -89,7 +98,8 @@ class OvadareFramework:
         self.event_dispatcher.add_listener('agent_action', self._handle_agent_action)
         self.event_dispatcher.add_listener('conflict_detected', self._handle_conflict_detected)
         self.event_dispatcher.add_listener('resolution_failed', self._handle_resolution_failed)
-        logger.debug("Event listeners for 'agent_action', 'conflict_detected', and 'resolution_failed' added.")
+        self.event_dispatcher.add_listener('feedback_submitted', self._handle_feedback_submitted)
+        logger.debug("Event listeners for 'agent_action', 'conflict_detected', 'resolution_failed', and 'feedback_submitted' added.")
 
     def _handle_agent_action(self, event_data: Dict[str, Any]) -> None:
         """
@@ -144,6 +154,30 @@ class OvadareFramework:
 
         self.escalation_manager.escalate_conflict(conflict)
 
+    def _handle_feedback_submitted(self, event_data: Dict[str, Any]) -> None:
+        """
+        Handles feedback submitted events by processing the feedback.
+
+        Args:
+            event_data (Dict[str, Any]): The event data containing feedback details.
+        """
+        agent_id = event_data.get('agent_id')
+        feedback_type = event_data.get('feedback_type')
+        message = event_data.get('message')
+        logger.debug(f"Handling feedback from agent '{agent_id}': {message}")
+
+        if not agent_id or not feedback_type or not message:
+            logger.error("Invalid feedback data.")
+            return
+
+        feedback_data = {
+            'agent_id': agent_id,
+            'feedback_type': feedback_type,
+            'message': message,
+            'timestamp': self._current_timestamp()
+        }
+        self.feedback_manager.submit_feedback(feedback_data)
+
     def start(self) -> None:
         """
         Starts the Ovadare Framework, including the API server and monitoring service.
@@ -177,3 +211,14 @@ class OvadareFramework:
         logger.debug("API server stopped.")
 
         logger.info("Ovadare Framework stopped.")
+
+    @staticmethod
+    def _current_timestamp() -> float:
+        """
+        Gets the current timestamp.
+
+        Returns:
+            float: The current time in seconds since the epoch.
+        """
+        import time
+        return time.time()

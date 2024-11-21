@@ -5,7 +5,7 @@ API Endpoints Module for the Ovadare Framework
 
 This module provides the APIEndpoints class, which defines RESTful API endpoints
 for agents and users to interact with the framework. It integrates authentication
-mechanisms to ensure secure access to the framework's resources.
+and authorization mechanisms to ensure secure access to the framework's resources.
 """
 
 import logging
@@ -16,6 +16,7 @@ from typing import Optional
 from ovadare.agents.agent_registry import AgentRegistry
 from ovadare.core.event_dispatcher import EventDispatcher
 from ovadare.security.authentication import AuthenticationManager
+from ovadare.security.authorization import AuthorizationManager
 
 # Configure the logger for this module
 logger = logging.getLogger(__name__)
@@ -31,7 +32,8 @@ class APIEndpoints:
         self,
         agent_registry: AgentRegistry,
         event_dispatcher: EventDispatcher,
-        authentication_manager: AuthenticationManager
+        authentication_manager: AuthenticationManager,
+        authorization_manager: AuthorizationManager
     ) -> None:
         """
         Initializes the APIEndpoints.
@@ -40,10 +42,12 @@ class APIEndpoints:
             agent_registry (AgentRegistry): The registry for managing agents.
             event_dispatcher (EventDispatcher): The event dispatcher for sending events.
             authentication_manager (AuthenticationManager): The authentication manager for securing endpoints.
+            authorization_manager (AuthorizationManager): The authorization manager for access control.
         """
         self.agent_registry = agent_registry
         self.event_dispatcher = event_dispatcher
         self.authentication_manager = authentication_manager
+        self.authorization_manager = authorization_manager
         self.app = Flask(__name__)
         self._register_routes()
         self._server_thread: Optional[Thread] = None
@@ -53,6 +57,7 @@ class APIEndpoints:
         """
         Registers the API routes.
         """
+
         @self.app.route('/register', methods=['POST'])
         def register():
             data = request.get_json()
@@ -62,6 +67,7 @@ class APIEndpoints:
                 return jsonify({'error': 'user_id and password are required'}), 400
             try:
                 self.authentication_manager.register_user(user_id, password)
+                self.authorization_manager.assign_role(user_id, 'agent')
                 return jsonify({'message': 'User registered successfully'}), 201
             except ValueError as e:
                 return jsonify({'error': str(e)}), 400
@@ -82,8 +88,12 @@ class APIEndpoints:
         @self.app.route('/submit_action', methods=['POST'])
         def submit_action():
             token = request.headers.get('Authorization')
-            if not self._is_authenticated(token):
+            user_id = self._get_user_id_from_token(token)
+            if not user_id:
                 return jsonify({'error': 'Unauthorized'}), 401
+
+            if not self.authorization_manager.is_authorized(user_id, 'submit_action'):
+                return jsonify({'error': 'Forbidden'}), 403
 
             data = request.get_json()
             agent_id = data.get('agent_id')
@@ -100,8 +110,12 @@ class APIEndpoints:
         @self.app.route('/submit_feedback', methods=['POST'])
         def submit_feedback():
             token = request.headers.get('Authorization')
-            if not self._is_authenticated(token):
+            user_id = self._get_user_id_from_token(token)
+            if not user_id:
                 return jsonify({'error': 'Unauthorized'}), 401
+
+            if not self.authorization_manager.is_authorized(user_id, 'submit_feedback'):
+                return jsonify({'error': 'Forbidden'}), 403
 
             data = request.get_json()
             agent_id = data.get('agent_id')
@@ -122,21 +136,22 @@ class APIEndpoints:
 
         logger.debug("API routes registered.")
 
-    def _is_authenticated(self, token: Optional[str]) -> bool:
+    def _get_user_id_from_token(self, token: Optional[str]) -> Optional[str]:
         """
-        Checks if the provided token is valid.
+        Retrieves the user ID from the authentication token.
 
         Args:
             token (Optional[str]): The authentication token from the request header.
 
         Returns:
-            bool: True if authenticated, False otherwise.
+            Optional[str]: The user ID if the token is valid, else None.
         """
         if token and self.authentication_manager.validate_token(token):
-            return True
+            user_id = self.authentication_manager.get_user_id_from_token(token)
+            return user_id
         else:
             logger.warning("Unauthorized access attempt.")
-            return False
+            return None
 
     def start(self, host: str = '0.0.0.0', port: int = 5000) -> None:
         """
@@ -146,6 +161,7 @@ class APIEndpoints:
             host (str): The host IP address.
             port (int): The port number.
         """
+
         def run_app():
             logger.info(f"API server running on {host}:{port}")
             self.app.run(host=host, port=port, use_reloader=False)

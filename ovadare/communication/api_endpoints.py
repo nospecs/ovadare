@@ -179,3 +179,32 @@ class APIEndpoints:
         logger.info("API server stop requested.")
         # Implement server shutdown logic if needed.
         pass
+
+
+@self.app.route('/get_conflicts', methods=['GET'])
+def get_conflicts():
+    token = request.headers.get('Authorization')
+    user_id = self._get_user_id_from_token(token)
+    if not user_id:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    if not self.authorization_manager.is_authorized(user_id, 'view_conflicts'):
+        return jsonify({'error': 'Forbidden'}), 403
+
+    conflicts = self.conflict_detector.load_conflicts()
+    conflicts_data = [conflict.serialize() for conflict in conflicts]
+    return jsonify({'conflicts': conflicts_data}), 200
+
+@self.app.route('/get_resolutions', methods=['GET'])
+def get_resolutions():
+    token = request.headers.get('Authorization')
+    user_id = self._get_user_id_from_token(token)
+    if not user_id:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    if not self.authorization_manager.is_authorized(user_id, 'view_resolutions'):
+        return jsonify({'error': 'Forbidden'}), 403
+
+    resolutions = self.resolution_engine.load_resolutions()
+    resolutions_data = [resolution.serialize() for resolution in resolutions]
+    return jsonify({'resolutions': resolutions_data}), 200

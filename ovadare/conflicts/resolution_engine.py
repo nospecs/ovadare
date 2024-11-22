@@ -167,3 +167,14 @@ class ResolutionEngine:
                 f"Error sending resolution to agent '{agent.agent_id}': {e}",
                 exc_info=True
             )
+
+
+def load_resolutions(self):
+    """
+    Loads resolutions from persistent storage.
+    """
+    if os.path.exists(self.resolution_storage_file):
+        with open(self.resolution_storage_file, 'r', encoding='utf-8') as f:
+            resolutions_data = json.load(f)
+            self.resolutions = [Resolution.deserialize(data) for data in resolutions_data]
+    return self.resolutions

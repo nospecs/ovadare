@@ -160,3 +160,13 @@ class ConflictDetector:
             logger.debug(f"Saved conflicts data to '{self._storage_file}'.")
         except Exception as e:
             logger.error(f"Failed to save conflicts data: {e}", exc_info=True)
+
+def load_conflicts(self):
+    """
+    Loads conflicts from persistent storage.
+    """
+    if os.path.exists(self.conflict_storage_file):
+        with open(self.conflict_storage_file, 'r', encoding='utf-8') as f:
+            conflicts_data = json.load(f)
+            self.conflicts = [Conflict.deserialize(data) for data in conflicts_data]
+    return self.conflicts

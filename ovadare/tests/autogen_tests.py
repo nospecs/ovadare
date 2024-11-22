@@ -7,6 +7,7 @@ class TestAgent(Agent):
     def __init__(self, agent_id, api_base_url):
         super().__init__(agent_id)
         self.api_base_url = api_base_url
+        self.token = None  # To store authentication token
 
     def run(self):
         # Simulate agent registration and login
@@ -19,16 +20,20 @@ class TestAgent(Agent):
 
     def register(self):
         # Code to register the agent with Ovadare
+        # Implement registration logic here
         pass
 
     def login(self):
         # Code to authenticate the agent with Ovadare
+        # Implement login logic here
         pass
 
     def submit_action(self):
-        # Code to submit an action
+        # Code to submit an action to Ovadare
+        # Implement action submission logic here
         pass
 
     def submit_feedback(self):
-        # Code to submit feedback
+        # Code to submit feedback to Ovadare
+        # Implement feedback submission logic here
         pass

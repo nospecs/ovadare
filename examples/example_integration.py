@@ -1,9 +1,10 @@
 # example_integration.py
 
+from ovadare.agents import Agent
 from ovadare.conflicts.conflict_detector import ConflictDetector
 from ovadare.conflicts.conflict_resolver import ConflictResolver
 from ovadare.policies.policy_manager import PolicyManager, Policy
-from ovadare.agents.agent import Agent
+from autogen import AssistantAgent  # Ensure this is correctly imported
 
 def main():
     # Initialize Policy Manager
@@ -31,11 +32,13 @@ def main():
 
     # Initialize Agents with Policies
     agent_a = Agent(
+        agent_id='agent_a',
         name='AgentA',
         role='DataProcessor',
         policies=[read_policy]
     )
     agent_b = Agent(
+        agent_id='agent_b',
         name='AgentB',
         role='DataAnalyzer',
         policies=[write_policy]
@@ -44,12 +47,12 @@ def main():
     # Simulate Agent Actions
     # AgentA attempts to write data, which should cause a policy conflict
     agent_a_action = {
-        'agent': agent_a.name,
+        'agent': agent_a.agent_id,
         'action': 'write_data',
         'resource': 'Dataset1'
     }
     agent_b_action = {
-        'agent': agent_b.name,
+        'agent': agent_b.agent_id,
         'action': 'read_data',
         'resource': 'Dataset1'
     }
@@ -61,26 +64,23 @@ def main():
     conflict_detector = ConflictDetector()
 
     # Detect Conflicts
-    conflicts = conflict_detector.detect_conflicts(
-        agent_actions=agent_actions,
-        policy_manager=policy_manager
-    )
+    conflicts = conflict_detector.detect(agent_id=agent_a.agent_id, action=agent_a_action)
 
     # Check if any conflicts were detected
     if conflicts:
         print("Conflicts detected:")
         for conflict in conflicts:
-            print(conflict)
+            print(conflict.to_dict())
 
         # Initialize Conflict Resolver
-        conflict_resolver = ConflictResolver()
+        conflict_resolver = ConflictResolver(conflict_detector=conflict_detector, resolution_engine=ResolutionEngine())
 
         # Resolve Conflicts
         resolutions = conflict_resolver.resolve_conflicts(conflicts)
 
         print("\nResolutions:")
         for resolution in resolutions:
-            print(resolution)
+            print(resolution.to_dict())
     else:
         print("No conflicts detected. Agents can proceed with their actions.")
 

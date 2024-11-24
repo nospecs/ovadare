@@ -1,10 +1,7 @@
-[build-system]
-requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["ovadare"]
+include-package-data = true
 
-[tool.black]
-line-length = 88
-target-version = ["py37", "py38", "py39", "py310"]
-
-[tool.isort]
-profile = "black"
+[tool.setuptools.scripts]
+ovadare-cli = "ovadare.cli:main"

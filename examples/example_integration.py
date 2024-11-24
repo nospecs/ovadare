@@ -1,6 +1,5 @@
 # example_integration.py
 
-from ovadare.agents.agent_interface import Agent
 from ovadare.conflicts.conflict_detector import ConflictDetector
 from ovadare.conflicts.conflict_resolver import ConflictResolver
 from ovadare.policies.policy_manager import PolicyManager, Policy

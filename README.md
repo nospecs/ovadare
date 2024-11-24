@@ -1,10 +1,10 @@
 <div align="center">
 
-![Logo of Ovadare](./docs/ovadare_logo.png)
+![Logo of OVADARE](./docs/ovadare_logo.png)
 
-# **Ovadare**
+# **OVADARE**
 
-🤖 **Ovadare**: Cutting-edge framework for detecting, classifying, and resolving conflicts autonomously. Designed to integrate seamlessly with Autogen and other AI platforms, Ovadare empowers multi-agent systems to handle complex tasks collaboratively and efficiently.
+🤖 **OVADARE**: Cutting-edge framework for detecting, classifying, and resolving conflicts between AI agents autonomously. Designed to integrate seamlessly with AutoGen, CrewAI and other AI orchestration platforms, OVADARE empowers multi-agent systems to handle complex tasks collaboratively and efficiently.
 
 <h3>
 
@@ -19,7 +19,7 @@
 
 ## Table of contents
 
-- [Why Ovadare?](#why-ovadare)
+- [Why OVADARE?](#why-ovadare)
 - [Getting Started](#getting-started)
 - [Key Features](#key-features)
 - [Examples](#examples)
@@ -30,25 +30,25 @@
 - [Contribution](#contribution)
 - [License](#license)
 
-## Why Ovadare?
+## Why OVADARE?
 
-In a world where multi-agent systems are becoming the backbone of AI-driven solutions, Ovadare stands out by providing robust conflict detection, classification, and resolution capabilities. Whether it's resolving task overlaps, prioritization issues, or behavioral conflicts among agents, Ovadare ensures seamless collaboration within your AI ecosystem.
+In a world where multi-agent systems are becoming the backbone of AI-driven solutions, OVADARE stands out by providing robust conflict detection, classification, and resolution capabilities. Whether it's resolving task overlaps, prioritization issues, or behavioral conflicts among agents, OVADARE ensures seamless collaboration within your AI ecosystem.
 
 ## Getting Started
 
-To get started with Ovadare, follow these simple steps:
+To get started with OVADARE, follow these simple steps:
 
 ### 1. Installation
 
-Ensure you have Python >=3.8 installed on your system. Ovadare can be installed via pip:
+Ensure you have Python >=3.8 installed on your system. OVADARE can be installed via pip:
 
 ''
 pip install ovadare
 ''
 
-### 2. Setting Up Ovadare
+### 2. Setting Up OVADARE
 
-To integrate Ovadare into your project, create an Ovadare conflict resolution manager:
+To integrate OVADARE into your project, create an OVADARE conflict resolution manager:
 
 ''
 from ovadare.conflicts import ConflictDetector, ConflictResolver
@@ -65,7 +65,7 @@ resolved = resolver.resolve_conflicts(conflicts)
 
 ### 3. Configuring Policies
 
-Ovadare allows you to define custom policies for conflict resolution:
+OVADARE allows you to define custom policies for conflict resolution:
 
 ''
 from ovadare.policies import PolicyManager, Policy
@@ -85,7 +85,7 @@ policy_manager.add_policy(custom_policy)
 
 ### 4. Running with Autogen
 
-Ovadare integrates seamlessly with Autogen for multi-agent orchestration. Define agents and tasks using Autogen and let Ovadare handle the conflicts:
+OVADARE integrates seamlessly with Autogen for multi-agent orchestration. Define agents and tasks using Autogen and let OVADARE handle the conflicts:
 
 ''
 from autogen import Agent, Task
@@ -142,11 +142,11 @@ resolved = resolver.resolve_conflicts(conflicts, method="ai-assisted")
 
 ## Integration with Autogen
 
-Ovadare enhances Autogen by adding robust conflict resolution capabilities to its agent orchestration framework. By integrating Ovadare, you can ensure that your agents collaborate effectively without stepping on each other's toes.
+OVADARE enhances Autogen by adding robust conflict resolution capabilities to its agent orchestration framework. By integrating OVADARE, you can ensure that your agents collaborate effectively without stepping on each other's toes.
 
 ## Contribution
 
-Ovadare is open-source, and we welcome contributions. To contribute:
+OVADARE is open-source, and we welcome contributions. To contribute:
 
 1. Fork the repository.
 2. Create a new branch for your feature.
@@ -173,4 +173,4 @@ python setup.py sdist bdist_wheel
 
 ## License
 
-Ovadare is released under the [MIT License](https://github.com/ovadare/ovadare/blob/main/LICENSE).
+OVADARE is released under the [MIT License](https://github.com/ovadare/ovadare/blob/main/LICENSE).

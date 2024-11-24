@@ -42,15 +42,15 @@ To get started with OVADARE, follow these simple steps:
 
 Ensure you have Python >=3.8 installed on your system. OVADARE can be installed via pip:
 
-''
+'''
 pip install ovadare
-''
+'''
 
 ### 2. Setting Up OVADARE
 
 To integrate OVADARE into your project, create an OVADARE conflict resolution manager:
 
-''
+'''
 from ovadare.conflicts import ConflictDetector, ConflictResolver
 
 detector = ConflictDetector()
@@ -61,13 +61,13 @@ conflicts = detector.detect_conflicts(agent_data)
 
 # Resolve conflicts
 resolved = resolver.resolve_conflicts(conflicts)
-''
+'''
 
 ### 3. Configuring Policies
 
 OVADARE allows you to define custom policies for conflict resolution:
 
-''
+'''
 from ovadare.policies import PolicyManager, Policy
 
 policy_manager = PolicyManager()
@@ -81,13 +81,13 @@ custom_policy = Policy(
 )
 
 policy_manager.add_policy(custom_policy)
-''
+'''
 
 ### 4. Running with Autogen
 
 OVADARE integrates seamlessly with Autogen for multi-agent orchestration. Define agents and tasks using Autogen and let OVADARE handle the conflicts:
 
-''
+'''
 from autogen import Agent, Task
 
 agents = [
@@ -103,7 +103,7 @@ tasks = [
 # Detect and resolve conflicts before execution
 conflicts = detector.detect_conflicts(tasks)
 resolved_tasks = resolver.resolve_conflicts(conflicts)
-''
+'''
 
 ## Key Features
 
@@ -119,26 +119,26 @@ resolved_tasks = resolver.resolve_conflicts(conflicts)
 
 Detect conflicts in a multi-agent system with ease:
 
-''
+'''
 conflicts = detector.detect_conflicts(agent_tasks)
 print(conflicts)
-''
+'''
 
 ### Policy Adjustment
 
 Dynamically adjust policies based on feedback loops:
 
-''
+'''
 policy_manager.adjust_policy("TaskPrioritization", new_rules=["If deadlines conflict, prioritize by urgency."])
-''
+'''
 
 ### Resolution Automation
 
 Automate resolution using AI-powered decision-making engines:
 
-''
+'''
 resolved = resolver.resolve_conflicts(conflicts, method="ai-assisted")
-''
+'''
 
 ## Integration with Autogen
 
@@ -155,21 +155,21 @@ OVADARE is open-source, and we welcome contributions. To contribute:
 
 ### Running Tests
 
-''
+'''
 pytest tests/
-''
+'''
 
 ### Static Analysis
 
-''
+'''
 mypy ovadare/
-''
+'''
 
 ### Packaging
 
-''
+'''
 python setup.py sdist bdist_wheel
-''
+'''
 
 ## License
 

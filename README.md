@@ -8,11 +8,11 @@
 
 <h3>
 
-[Homepage](https://www.ovadare.com/) | [Documentation](https://docs.ovadare.com/) | [Examples](https://github.com/ovadare/ovadare-examples)
+[Homepage](https://www.ovadare.com/) | [Documentation](#) | [Examples](https://github.com/ovadare/ovadare-examples)
 
 </h3>
 
-[![GitHub Repo stars](https://img.shields.io/github/stars/ovadare/ovadare)](https://github.com/ovadare/ovadare)
+[![GitHub Repo stars](https://img.shields.io/github/stars/ovadare/ovadare)](https://github.com/nospecs/ovadare)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 </div>

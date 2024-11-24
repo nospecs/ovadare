@@ -4,7 +4,7 @@ from ovadare.agents.agent_interface import Agent
 from ovadare.conflicts.conflict_detector import ConflictDetector
 from ovadare.conflicts.conflict_resolver import ConflictResolver
 from ovadare.policies.policy_manager import PolicyManager, Policy
-from autogen import AssistantAgent
+from ovadare.agents import Agent
 
 def main():
     # Initialize Policy Manager

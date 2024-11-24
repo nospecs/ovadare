@@ -12,9 +12,9 @@
 
 </h3>
 
-[![GitHub Repo stars](https://img.shields.io/github/stars/nospecs/ovadare)](https://github.com/nospecs/ovadare)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![GitHub Repo stars](https://img.shields.io/github/stars/nospecs/ovadare)](https://github.com/nospecs/ovadare)
 </div>
 
 ## Table of contents

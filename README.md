@@ -8,7 +8,7 @@
 
 <h3>
 
-[Homepage](https://www.ovadare.com/) | [Documentation](#) | [Examples](https://github.com/ovadare/ovadare-examples)
+[Homepage](https://www.ovadare.com/) | [Documentation](https://docs.ovadare.com/)
 
 </h3>
 
@@ -173,3 +173,6 @@ python setup.py sdist bdist_wheel
 ## License
 
 OVADARE is released under the [MIT License](https://github.com/ovadare/ovadare/blob/main/LICENSE).
+
+## Supporting OVADARE
+Give OVADARE a ⭐ — it helps more people discover it!
